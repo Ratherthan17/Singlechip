@@ -1,0 +1,215 @@
+C51 COMPILER V9.54   MAIN                                                                  05/01/2024 18:32:45 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\51\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\mai
+                    -n.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <REGX52.H>
+   2          //#include <windows.h>//单片机中没有这两个头文件
+   3          //#include <unistd.h>//所以要自己写延时函数
+   4          
+   5          //延时函数，while 里的内容由STC的 "软件延时计算器组成"，定时长度为1ms
+   6          //执行1次，延时1秒，循环time次，即延时time毫秒
+   7          //time 单位为 毫秒 
+   8          void Delay(unsigned int time)
+   9          {
+  10   1        while(time--)
+  11   1        {
+  12   2          unsigned char i, j;
+  13   2      
+  14   2          i = 2;
+  15   2          j = 239;
+  16   2          do
+  17   2          {
+  18   3            while (--j);
+  19   3          } while (--i);
+  20   2        }   
+  21   1      }
+  22          
+  23          
+  24          //移位法——单个灯亮
+  25          void Light1(unsigned int time)
+  26          {
+  27   1        int i = 0;
+  28   1        for(i=0; i<8; i++)
+  29   1        {
+  30   2          //右移0次为 1000 0000，取反后是 0111 1111
+  31   2          //右移1次为 0100 0000，取反后是 1011 1111
+  32   2          //......
+  33   2          P2 = ~(0x80>>i);//地址是无符数整型，右移空出的高位用0填补
+  34   2          
+  35   2          Delay(time);
+  36   2        }
+  37   1        
+  38   1      }
+  39          
+  40          //除以2法——单个灯亮
+  41          void Light2(unsigned int time)
+  42          {
+  43   1        int i = 0;
+  44   1        int j = 0x80;//1000 0000
+  45   1        for(i = 0; i<8; i++)
+  46   1        {       
+  47   2          if(i == 0)
+  48   2          {
+  49   3            P2 = ~j;//0111 1111
+  50   3          }
+  51   2          else
+  52   2          {
+  53   3            //1000 0000 (128)每次除以2，1会向右移1位
+  54   3            //0100 0000 (64)
+C51 COMPILER V9.54   MAIN                                                                  05/01/2024 18:32:45 PAGE 2   
+
+  55   3            //0010 0000 (32)
+  56   3            //......
+  57   3            P2 = ~(j / 2);
+  58   3            j /= 2;
+  59   3          }
+  60   2          
+  61   2          Delay(time);
+  62   2        }
+  63   1      }
+  64          
+  65          //逐渐点亮所有灯——移位法
+  66          void Light3(unsigned int time)
+  67          {
+  68   1        int i = 0;
+  69   1        for(i=0; i<9; i++)
+  70   1        {
+  71   2          if(i==0)
+  72   2          {
+  73   3            P2 = 0xff;//一开始全灭
+  74   3          }
+  75   2          else
+  76   2          {
+  77   3            //0x7f 0111 1111
+  78   3            P2 = (0x7f>>(i-1));
+  79   3          }   
+  80   2          Delay(time);
+  81   2        }   
+  82   1      }
+  83          
+  84          //灯逐渐熄灭
+  85          //temp 一开始 0000 0000 
+  86          //j 1000 0000 -> 0100 0000 -> 0010 0000 -> 0001 0000 ......
+  87          // temp + j 1000 0000 -> 1100 0000 -> 1110 0000 ......
+  88          void Light4(unsigned int time)
+  89          {   
+  90   1        int i = 0;
+  91   1        int j = 0x80;//1000 0000
+  92   1        int temp = 0x00;
+  93   1        
+  94   1        //P2 = 0x00;//一开始全亮
+  95   1        
+  96   1        //Delay(5); 
+  97   1        
+  98   1        for(i=0; i<9; i++)
+  99   1        {
+ 100   2          if(i==0)
+ 101   2          {
+ 102   3            P2 = 0x00;//一开始全亮     
+ 103   3          }
+ 104   2          else if(i==8) //全灭    
+ 105   2          {
+ 106   3            P2 = 0xff;
+ 107   3          }
+ 108   2          else
+ 109   2          {
+ 110   3            temp += j;
+ 111   3            P2 = temp;//直接 P2 += j 不行
+ 112   3            j /= 2;           
+ 113   3          }   
+ 114   2      
+ 115   2          Delay(time);
+ 116   2        }
+C51 COMPILER V9.54   MAIN                                                                  05/01/2024 18:32:45 PAGE 3   
+
+ 117   1      
+ 118   1      }
+ 119          
+ 120          //灯逐渐点亮，又逐渐熄灭
+ 121          //其实就是Light3和Light4合在一起
+ 122          void Light5(unsigned int time)
+ 123          {
+ 124   1        char i = 0;
+ 125   1        int j = 0x80;//1000 0000
+ 126   1        int temp = 0x00;
+ 127   1        
+ 128   1        for(i=0; i<9; i++)
+ 129   1        {
+ 130   2          if(i==0)
+ 131   2          {
+ 132   3            P2 = 0xff;//一开始全灭
+ 133   3          }
+ 134   2          else
+ 135   2          {
+ 136   3            //0x7f 0111 1111
+ 137   3            P2 = (0x7f>>(i-1));
+ 138   3          }   
+ 139   2          Delay(time);
+ 140   2        }   
+ 141   1        
+ 142   1        
+ 143   1        for(i=0; i<9; i++)
+ 144   1        {
+ 145   2          if(i==0)
+ 146   2          {
+ 147   3            P2 = 0x00;//一开始全亮     
+ 148   3          }
+ 149   2          else if(i==8) //全灭    
+ 150   2          {
+ 151   3            P2 = 0xff;
+ 152   3          }
+ 153   2          else
+ 154   2          {
+ 155   3            temp += j;
+ 156   3            P2 = temp;//直接 P2 += j 不行
+ 157   3            j /= 2;           
+ 158   3          }   
+ 159   2      
+ 160   2          Delay(time);
+ 161   2        }
+ 162   1        
+ 163   1        
+ 164   1      }
+ 165          
+ 166          
+ 167          void main()
+ 168          {
+ 169   1        //int i = 0;
+ 170   1        
+ 171   1        
+ 172   1        while(1)
+ 173   1        {
+ 174   2          //Light1();//移位法——单个灯亮
+ 175   2          //Light2();//除以2法——单个灯亮
+ 176   2          //Light3();//逐渐点亮所有灯——移位法
+ 177   2          //Light4(); //灯逐渐熄灭
+ 178   2            Light5(300);//灯逐渐点亮，又逐渐熄灭
+C51 COMPILER V9.54   MAIN                                                                  05/01/2024 18:32:45 PAGE 4   
+
+ 179   2              
+ 180   2          //Sleep(2000);    
+ 181   2          //usleep(500000);//延迟 0.5s
+ 182   2              
+ 183   2        }
+ 184   1        
+ 185   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    381    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      14
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
